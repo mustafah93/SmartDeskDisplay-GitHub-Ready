@@ -45,7 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -53,7 +52,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -192,7 +190,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         permissionLauncher.launch(permissionsToRequest)
     }
 
-    // Time & Date States
     var hour12 by remember { mutableStateOf("11") }
     var hour24Int by remember { mutableIntStateOf(11) }
     var minuteInt by remember { mutableIntStateOf(0) }
@@ -202,11 +199,9 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
     var dateStr by remember { mutableStateOf("") }
     var isNightMode by remember { mutableStateOf(false) }
 
-    // Weather
     var weatherStr by remember { mutableStateOf("جاري جلب الطقس...") }
     var tempOnly by remember { mutableStateOf("--°") }
 
-    // Settings & Data
     var selectedThemeIndex by remember { mutableIntStateOf(0) }
     var chimeEnabled by remember { mutableStateOf(true) }
     var autoBrightnessEnabled by remember { mutableStateOf(true) }
@@ -217,15 +212,12 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
     var eventTargetMillis by remember { mutableLongStateOf(0L) }
     var eventCountdown by remember { mutableStateOf("") }
 
-    // Battery
     var isCharging by remember { mutableStateOf(true) }
     var batteryLevel by remember { mutableIntStateOf(100) }
 
-    // Wallpapers
     var wallpaperUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var currentBgIndex by remember { mutableIntStateOf(0) }
 
-    // Burn-in Offset
     var targetOffset by remember { mutableStateOf(Offset.Zero) }
     val animatedOffset by animateOffsetAsState(
         targetValue = targetOffset,
@@ -233,14 +225,12 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         label = "BurnInOffset"
     )
 
-    // Dialogs & Controls
     var showControls by remember { mutableStateOf(false) }
     var showAddTaskDialog by remember { mutableStateOf(false) }
     var showThemePickerDialog by remember { mutableStateOf(false) }
     var showEventDialog by remember { mutableStateOf(false) }
     var lastChimingHour by remember { mutableIntStateOf(-1) }
 
-    // Load saved DataStore preferences
     LaunchedEffect(Unit) {
         val prefs = context.dataStore.data.first()
         val savedTasks = prefs[TASKS_KEY]
@@ -258,7 +248,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         scope.launch { context.dataStore.edit { it[TASKS_KEY] = tasks.toSet() } }
     }
 
-    // Light Sensor for Smart Auto-Brightness
     DisposableEffect(context) {
         val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
@@ -274,7 +263,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         onDispose { sensorManager.unregisterListener(listener) }
     }
 
-    // Battery Monitor
     DisposableEffect(context) {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
@@ -290,7 +278,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         onDispose { context.unregisterReceiver(receiver) }
     }
 
-    // Main Clock, Brightness, Countdown & Hourly Chime Loop
     LaunchedEffect(chimeEnabled, autoBrightnessEnabled, ambientLux, eventTargetMillis, eventTitle) {
         while (true) {
             val cal = Calendar.getInstance()
@@ -307,10 +294,8 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
             amPm = if (h24 < 12) "AM" else "PM"
             dateStr = SimpleDateFormat("EEEE، d MMMM", Locale("ar")).format(cal.time)
 
-            // Night mode (11 PM to 6 AM)
             isNightMode = (h24 >= 23 || h24 < 6)
 
-            // Smart Brightness (Time + Ambient Light Sensor)
             val activity = context as? Activity
             activity?.window?.let { win ->
                 val params = win.attributes
@@ -325,13 +310,11 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                 win.attributes = params
             }
 
-            // Hourly Chime (9:00 AM to 10:00 PM inclusive, top of the hour)
             if (chimeEnabled && h24 in 9..22 && min == 0 && sec == 0 && lastChimingHour != h24) {
                 lastChimingHour = h24
                 scope.launch(Dispatchers.Default) { playSoftCrystalChime() }
             }
 
-            // Update Event Countdown
             if (eventTitle.isNotBlank() && eventTargetMillis > System.currentTimeMillis()) {
                 val diff = eventTargetMillis - System.currentTimeMillis()
                 val days = diff / (1000 * 60 * 60 * 24)
@@ -352,7 +335,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         }
     }
 
-    // Burn-in Protection Offset every 3 minutes
     LaunchedEffect(Unit) {
         while (true) {
             delay(180_000L)
@@ -363,7 +345,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         }
     }
 
-    // Wallpaper Rotation every 10 minutes
     LaunchedEffect(permissionsGranted) {
         while (true) {
             val files = wallpaperDir.listFiles { file ->
@@ -378,7 +359,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         }
     }
 
-    // Weather Update every 30 minutes
     LaunchedEffect(permissionsGranted) {
         while (true) {
             val (full, temp) = fetchRealWeatherDetailed(context)
@@ -388,7 +368,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
         }
     }
 
-    // Auto-hide controls after 5 seconds (unless a dialog is open)
     LaunchedEffect(showControls, showAddTaskDialog, showThemePickerDialog, showEventDialog) {
         if (showControls && !showAddTaskDialog && !showThemePickerDialog && !showEventDialog) {
             delay(5000L)
@@ -443,7 +422,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                 showControls = !showControls
             }
     ) {
-        // Background Wallpapers (Disabled in Night Mode for pure OLED black)
         if (!isNightMode && wallpaperUris.isNotEmpty()) {
             Crossfade(
                 targetState = wallpaperUris[currentBgIndex % wallpaperUris.size],
@@ -460,7 +438,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
             }
         }
 
-        // Theme Content with Burn-In Offset
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -469,7 +446,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
             ThemeRenderer(theme = currentTheme, state = displayState)
         }
 
-        // Hidden Controls Bar
         AnimatedVisibility(
             visible = showControls,
             enter = fadeIn(tween(250)),
@@ -486,7 +462,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Theme Switcher Button
                 ControlPillButton(
                     icon = Icons.Default.Palette,
                     label = "التصميم (${selectedThemeIndex + 1}/15)",
@@ -494,7 +469,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                     onClick = { showThemePickerDialog = true }
                 )
 
-                // Add Task Button
                 ControlPillButton(
                     icon = Icons.Default.Add,
                     label = "مهمة",
@@ -502,7 +476,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                     onClick = { showAddTaskDialog = true }
                 )
 
-                // Countdown Event Button
                 ControlPillButton(
                     icon = Icons.Default.Event,
                     label = "حدث قادم",
@@ -510,7 +483,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                     onClick = { showEventDialog = true }
                 )
 
-                // Next Wallpaper Button
                 if (wallpaperUris.size > 1) {
                     IconButton(
                         onClick = { currentBgIndex = (currentBgIndex + 1) % wallpaperUris.size },
@@ -520,7 +492,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                     }
                 }
 
-                // Hourly Chime Toggle
                 IconButton(
                     onClick = {
                         chimeEnabled = !chimeEnabled
@@ -539,7 +510,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                     )
                 }
 
-                // Auto Brightness Toggle
                 IconButton(
                     onClick = {
                         autoBrightnessEnabled = !autoBrightnessEnabled
@@ -555,7 +525,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
                     )
                 }
 
-                // Exit App Button
                 ControlPillButton(
                     icon = Icons.Default.Close,
                     label = "خروج",
@@ -565,7 +534,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
             }
         }
 
-        // Dialog 1: Theme Picker (15 Themes)
         if (showThemePickerDialog) {
             AlertDialog(
                 onDismissRequest = { showThemePickerDialog = false },
@@ -610,7 +578,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
             )
         }
 
-        // Dialog 2: Add Task
         if (showAddTaskDialog) {
             var newTaskText by remember { mutableStateOf("") }
             AlertDialog(
@@ -639,7 +606,6 @@ fun SmartDisplayApp(wallpaperDir: File, onExitApp: () -> Unit) {
             )
         }
 
-        // Dialog 3: Add/Edit Upcoming Event Countdown
         if (showEventDialog) {
             var titleInput by remember { mutableStateOf(eventTitle) }
             var daysInput by remember { mutableStateOf("3") }
@@ -731,9 +697,6 @@ fun ControlPillButton(
     }
 }
 
-// =========================================================================
-// 15 THEMES RENDERER
-// =========================================================================
 @Composable
 fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
     val primaryColor = if (state.isNightMode) Color(0xFFB71C1C) else Color.White
@@ -742,7 +705,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
     val cardBg = if (state.isNightMode) Color(0xFF0A0000) else Color(0xFF10141D).copy(alpha = 0.78f)
 
     when (theme.id) {
-        // 1. Classic Desk
         0 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 28.dp),
@@ -770,7 +732,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
             }
         }
 
-        // 2. Modern Gauge Clock (ساعة الأميال العصرية بعقارب + لوحة بطاقات جانبية)
         1 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 36.dp, vertical = 22.dp),
@@ -792,7 +753,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
                     modifier = Modifier.weight(1.15f).fillMaxHeight(),
                     verticalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // Date + Digital Time Header
                     Row(
                         modifier = Modifier.fillMaxWidth().background(cardBg, RoundedCornerShape(14.dp)).padding(horizontal = 18.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -801,7 +761,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
                         Text(state.dateStr, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = primaryColor)
                         Text("${state.hour12}:${state.minuteStr} ${state.amPm}", fontSize = 18.sp, color = accent, fontWeight = FontWeight.Bold)
                     }
-                    // Weather & Battery Row
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Box(modifier = Modifier.weight(1f).background(cardBg, RoundedCornerShape(14.dp)).padding(12.dp)) {
                             Text(state.weatherStr, fontSize = 16.sp, color = primaryColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -818,7 +777,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
             }
         }
 
-        // 3. Apple StandBy Split
         2 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -857,7 +815,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
             }
         }
 
-        // 4. Retro Flip Clock
         3 -> {
             Column(
                 modifier = Modifier.fillMaxSize().padding(28.dp),
@@ -890,7 +847,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
             }
         }
 
-        // 5. Nest Ambient Minimal
         4 -> {
             Box(modifier = Modifier.fillMaxSize().padding(36.dp)) {
                 Column(modifier = Modifier.align(Alignment.BottomStart)) {
@@ -911,7 +867,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
             }
         }
 
-        // 6. Sci-Fi HUD
         5 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(28.dp),
@@ -951,7 +906,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
             }
         }
 
-        // 7. Orbit 24h Ring (المسار الفلكي)
         6 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -984,7 +938,6 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
             }
         }
 
-        // 8. Bento Glass Grid (البطاقات الزجاجية)
         7 -> {
             Column(modifier = Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(modifier = Modifier.weight(1.2f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -1013,8 +966,7 @@ fun ThemeRenderer(theme: DeskTheme, state: DisplayState) {
                     }
                     Box(Modifier.weight(1f).fillMaxHeight().background(cardBg, RoundedCornerShape(22.dp)).padding(16.dp), contentAlignment = Alignment.CenterStart) {
                         Text(
-                            if (state.eventCountdown.isNotEmpty()) "⏳ ${state.eventTitle}
-${state.eventCountdown}" else "لا يوجد حدث قادم",
+                            text = if (state.eventCountdown.isNotEmpty()) "⏳ ${state.eventTitle} — ${state.eventCountdown}" else "لا يوجد حدث قادم",
                             color = accent,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
@@ -1024,7 +976,6 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
             }
         }
 
-        // 9. Cinematic Typographic (شريط السينما العريض)
         8 -> {
             Column(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -1046,16 +997,13 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
             }
         }
 
-        // 10. Aviation Cockpit (عداد الطيران الدائري)
         9 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(28.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Battery Dial
                 MiniDialGauge("BAT", "${state.batteryLevel}%", state.batteryLevel / 100f, accent, primaryColor)
-                // Main Clock Gauge
                 AnalogGaugeClock(
                     hour = state.hour24Int % 12,
                     minute = state.minuteInt,
@@ -1065,7 +1013,6 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
                     showNumbers = true,
                     modifier = Modifier.size(255.dp)
                 )
-                // Tasks & Date Column
                 Column(modifier = Modifier.width(240.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(state.dateStr, color = accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     Text(state.weatherStr, color = primaryColor, fontSize = 16.sp)
@@ -1075,7 +1022,6 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
             }
         }
 
-        // 11. Neon Pulse Wave (النبض الموجي)
         10 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(40.dp),
@@ -1093,7 +1039,6 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
             }
         }
 
-        // 12. Nordic Minimal Analog (ساعة الحائط الاسكندنافية)
         11 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(40.dp),
@@ -1118,7 +1063,6 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
             }
         }
 
-        // 13. Cyber Terminal (الماتريكس الرقمي)
         12 -> {
             Column(
                 modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -1147,7 +1091,6 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
             }
         }
 
-        // 14. Luxury Gold Chrono (الذهبي الفاخر)
         13 -> {
             Row(
                 modifier = Modifier.fillMaxSize().padding(36.dp),
@@ -1178,7 +1121,6 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
             }
         }
 
-        // 15. Zen Focus Board (لوحة التركيز العميق)
         else -> {
             Column(
                 modifier = Modifier.fillMaxSize().padding(36.dp),
@@ -1212,9 +1154,6 @@ ${state.eventCountdown}" else "لا يوجد حدث قادم",
     }
 }
 
-// =========================================================================
-// REUSABLE COMPONENTS (Analog Gauge Clock, Flip Card, Tasks, Event Banner)
-// =========================================================================
 @Composable
 fun AnalogGaugeClock(
     hour: Int,
@@ -1230,7 +1169,6 @@ fun AnalogGaugeClock(
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = size.minDimension / 2f
 
-            // Outer Glow Ring
             drawCircle(
                 color = accent.copy(alpha = 0.25f),
                 radius = radius,
@@ -1242,7 +1180,6 @@ fun AnalogGaugeClock(
                 style = Stroke(width = 2.dp.toPx())
             )
 
-            // 60 Precision Gauge Ticks
             for (i in 0 until 60) {
                 val angle = Math.toRadians((i * 6 - 90).toDouble())
                 val isMajor = i % 5 == 0
@@ -1260,7 +1197,6 @@ fun AnalogGaugeClock(
                 )
             }
 
-            // Hour Hand
             val hourAngle = (hour + minute / 60f) * 30f
             rotate(hourAngle, pivot = center) {
                 drawLine(
@@ -1272,7 +1208,6 @@ fun AnalogGaugeClock(
                 )
             }
 
-            // Minute Hand
             val minuteAngle = (minute + second / 60f) * 6f
             rotate(minuteAngle, pivot = center) {
                 drawLine(
@@ -1284,7 +1219,6 @@ fun AnalogGaugeClock(
                 )
             }
 
-            // Second Hand (Orange/Accent Sweep)
             val secondAngle = second * 6f
             rotate(secondAngle, pivot = center) {
                 drawLine(
@@ -1296,11 +1230,9 @@ fun AnalogGaugeClock(
                 )
             }
 
-            // Center Cap
             drawCircle(color = Color(0xFFFF5722), radius = 6.dp.toPx(), center = center)
         }
 
-        // Optional Hour Numbers (1..12)
         if (showNumbers) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val r = (maxWidth.value / 2f) - 38f
@@ -1422,17 +1354,14 @@ fun BatteryStatusRow(state: DisplayState, accent: Color, secondaryColor: Color) 
     }
 }
 
-// =========================================================================
-// SYNTHESIZED CRYSTAL HOURLY CHIME (No external audio file needed)
-// =========================================================================
 fun playSoftCrystalChime() {
     try {
         val sampleRate = 22050
         val durationSec = 1.2
         val numSamples = (sampleRate * durationSec).toInt()
         val samples = ShortArray(numSamples)
-        val freq1 = 880.0 // A5 soft bell harmonic
-        val freq2 = 1318.5 // E6 crystal overtone
+        val freq1 = 880.0
+        val freq2 = 1318.5
 
         for (i in 0 until numSamples) {
             val t = i.toDouble() / sampleRate
